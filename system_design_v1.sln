@@ -1,0 +1,29 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "services", "services", "{5854FF58-B8C5-05C6-5BF2-ACE42193F22B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSharpApi", "services\csharp-api\CSharpApi.csproj", "{0EF636E6-02EA-2474-F1CB-22850B5CA0CE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0EF636E6-02EA-2474-F1CB-22850B5CA0CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0EF636E6-02EA-2474-F1CB-22850B5CA0CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0EF636E6-02EA-2474-F1CB-22850B5CA0CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0EF636E6-02EA-2474-F1CB-22850B5CA0CE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0EF636E6-02EA-2474-F1CB-22850B5CA0CE} = {5854FF58-B8C5-05C6-5BF2-ACE42193F22B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F9A286F1-4EC4-476F-BDD3-407979094506}
+	EndGlobalSection
+EndGlobal

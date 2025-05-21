@@ -1,0 +1,808 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: system-design-practice
+
+---
+# -----------------------
+# Database Services
+# -----------------------
+
+# PostgreSQL StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: system-design-practice
+spec:
+  serviceName: postgres
+  replicas: 1  # Set to 1 initially, can be increased for HA setup
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: postgres_password
+        - name: POSTGRES_MULTIPLE_DATABASES
+          value: csharpdb,javadb
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: init-scripts
+        configMap:
+          name: postgres-init-scripts
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
+
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: system-design-practice
+spec:
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: postgres
+
+---
+# MongoDB StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+  namespace: system-design-practice
+spec:
+  serviceName: mongo
+  replicas: 1  # Start with a single instance
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+      - name: mongo
+        image: mongo:6
+        ports:
+        - containerPort: 27017
+        volumeMounts:
+        - name: mongo-data
+          mountPath: /data/db
+        # For replica set: uncomment the command below
+        # command:
+        # - mongod
+        # - "--replSet"
+        # - "rs0"
+  volumeClaimTemplates:
+  - metadata:
+      name: mongo-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
+
+---
+# MongoDB Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  namespace: system-design-practice
+spec:
+  ports:
+  - port: 27017
+    targetPort: 27017
+  selector:
+    app: mongo
+
+---
+# Redis Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: system-design-practice
+spec:
+  replicas: 1  # Start with a single instance
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-pvc
+
+---
+# Redis PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: system-design-practice
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: system-design-practice
+spec:
+  ports:
+  - port: 6379
+    targetPort: 6379
+  selector:
+    app: redis
+
+---
+# -----------------------
+# Message Queue
+# -----------------------
+
+# RabbitMQ Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: system-design-practice
+spec:
+  replicas: 1  # Start with a single instance
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3-management
+        ports:
+        - containerPort: 5672
+          name: amqp
+        - containerPort: 15672
+          name: management
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: guest
+        - name: RABBITMQ_DEFAULT_PASS
+          value: guest
+        volumeMounts:
+        - name: rabbitmq-data
+          mountPath: /var/lib/rabbitmq
+      volumes:
+      - name: rabbitmq-data
+        persistentVolumeClaim:
+          claimName: rabbitmq-pvc
+
+---
+# RabbitMQ PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-pvc
+  namespace: system-design-practice
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# RabbitMQ Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: system-design-practice
+spec:
+  ports:
+  - port: 5672
+    targetPort: 5672
+    name: amqp
+  - port: 15672
+    targetPort: 15672
+    name: management
+  selector:
+    app: rabbitmq
+
+---
+# -----------------------
+# API Services
+# -----------------------
+
+# C# API Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csharp-api
+  namespace: system-design-practice
+spec:
+  replicas: 1  # Start with a single instance, increase for scaling
+  selector:
+    matchLabels:
+      app: csharp-api
+  template:
+    metadata:
+      labels:
+        app: csharp-api
+    spec:
+      containers:
+      - name: csharp-api
+        image: csharp-api:latest  # You'll need to build and push this image
+        ports:
+        - containerPort: 80
+        env:
+        - name: ConnectionStrings__DefaultConnection
+          value: Server=postgres;Database=csharpdb;User Id=postgres;Password=postgres_password;
+        - name: ASPNETCORE_ENVIRONMENT
+          value: Development
+        - name: REDIS_CONNECTION
+          value: redis:6379
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: RABBITMQ_USER
+          value: guest
+        - name: RABBITMQ_PASSWORD
+          value: guest
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+---
+# C# API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: csharp-api
+  namespace: system-design-practice
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: csharp-api
+
+---
+# Java API Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: java-api
+  namespace: system-design-practice
+spec:
+  replicas: 1  # Start with a single instance, increase for scaling
+  selector:
+    matchLabels:
+      app: java-api
+  template:
+    metadata:
+      labels:
+        app: java-api
+    spec:
+      containers:
+      - name: java-api
+        image: java-api:latest  # You'll need to build and push this image
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://postgres:5432/javadb
+        - name: SPRING_DATASOURCE_USERNAME
+          value: postgres
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: postgres_password
+        - name: SPRING_REDIS_HOST
+          value: redis
+        - name: SPRING_REDIS_PORT
+          value: "6379"
+        - name: SPRING_RABBITMQ_HOST
+          value: rabbitmq
+        - name: SPRING_RABBITMQ_PORT
+          value: "5672"
+        - name: SPRING_RABBITMQ_USERNAME
+          value: guest
+        - name: SPRING_RABBITMQ_PASSWORD
+          value: guest
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "400m"
+
+---
+# Java API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: java-api
+  namespace: system-design-practice
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: java-api
+
+---
+# Node.js API Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-api
+  namespace: system-design-practice
+spec:
+  replicas: 1  # Start with a single instance, increase for scaling
+  selector:
+    matchLabels:
+      app: nodejs-api
+  template:
+    metadata:
+      labels:
+        app: nodejs-api
+    spec:
+      containers:
+      - name: nodejs-api
+        image: nodejs-api:latest  # You'll need to build and push this image
+        ports:
+        - containerPort: 3000
+        env:
+        - name: MONGO_URI
+          value: mongodb://mongo:27017/nodedb
+        - name: REDIS_URL
+          value: redis://redis:6379
+        - name: RABBITMQ_URL
+          value: amqp://guest:guest@rabbitmq:5672
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+---
+# Node.js API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-api
+  namespace: system-design-practice
+spec:
+  ports:
+  - port: 3000
+    targetPort: 3000
+  selector:
+    app: nodejs-api
+
+---
+# Python API Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-api
+  namespace: system-design-practice
+spec:
+  replicas: 1  # Start with a single instance, increase for scaling
+  selector:
+    matchLabels:
+      app: python-api
+  template:
+    metadata:
+      labels:
+        app: python-api
+    spec:
+      containers:
+      - name: python-api
+        image: python-api:latest  # You'll need to build and push this image
+        ports:
+        - containerPort: 8000
+        env:
+        - name: MONGO_URI
+          value: mongodb://mongo:27017/pythondb
+        - name: REDIS_HOST
+          value: redis
+        - name: REDIS_PORT
+          value: "6379"
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: RABBITMQ_PORT
+          value: "5672"
+        - name: RABBITMQ_USER
+          value: guest
+        - name: RABBITMQ_PASSWORD
+          value: guest
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+---
+# Python API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-api
+  namespace: system-design-practice
+spec:
+  ports:
+  - port: 8000
+    targetPort: 8000
+  selector:
+    app: python-api
+
+---
+# -----------------------
+# API Gateway / Load Balancer
+# -----------------------
+
+# Nginx ConfigMap for configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: system-design-practice
+data:
+  nginx.conf: |
+    events {
+      worker_connections 1024;
+    }
+
+    http {
+      upstream csharp_backend {
+        server csharp-api:80;
+        # Uncomment and add more servers when scaling
+        # server csharp-api-1:80;
+        # server csharp-api-2:80;
+      }
+
+      upstream java_backend {
+        server java-api:8080;
+        # Uncomment and add more servers when scaling
+        # server java-api-1:8080;
+        # server java-api-2:8080;
+      }
+
+      upstream nodejs_backend {
+        server nodejs-api:3000;
+        # Uncomment and add more servers when scaling
+        # server nodejs-api-1:3000;
+        # server nodejs-api-2:3000;
+      }
+
+      upstream python_backend {
+        server python-api:8000;
+        # Uncomment and add more servers when scaling
+        # server python-api-1:8000;
+        # server python-api-2:8000;
+      }
+
+      server {
+        listen 80;
+
+        location / {
+          return 200 'System Design Playground is running!\n';
+          add_header Content-Type text/plain;
+        }
+
+        location /csharp/ {
+          proxy_pass http://csharp_backend/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        location /java/ {
+          proxy_pass http://java_backend/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        location /nodejs/ {
+          proxy_pass http://nodejs_backend/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        location /python/ {
+          proxy_pass http://python_backend/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        location /health {
+          return 200 'OK';
+          add_header Content-Type text/plain;
+        }
+      }
+    }
+
+---
+# Nginx Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: system-design-practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+
+---
+# Nginx Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: system-design-practice
+spec:
+  type: LoadBalancer  # Change to NodePort if running locally without cloud provider
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: nginx
+
+---
+# PostgreSQL init script ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: system-design-practice
+data:
+  create-multiple-databases.sh: |
+    #!/bin/bash
+    set -e
+    set -u
+
+    function create_user_and_database() {
+        local database=$1
+        echo "Creating database $database"
+        psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
+            CREATE DATABASE $database;
+            GRANT ALL PRIVILEGES ON DATABASE $database TO $POSTGRES_USER;
+    EOSQL
+    }
+
+    if [ -n "$POSTGRES_MULTIPLE_DATABASES" ]; then
+        for db in $(echo $POSTGRES_MULTIPLE_DATABASES | tr "," " "); do
+            create_user_and_database $db
+        done
+    fi
+
+---
+# -----------------------
+# Optional: Monitoring
+# -----------------------
+
+# Uncomment the section below to enable monitoring
+
+# # Prometheus ConfigMap
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: prometheus-config
+#   namespace: system-design-practice
+# data:
+#   prometheus.yml: |
+#     global:
+#       scrape_interval: 15s
+#     scrape_configs:
+#       - job_name: 'kubernetes-pods'
+#         kubernetes_sd_configs:
+#         - role: pod
+#         relabel_configs:
+#         - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+#           action: keep
+#           regex: true
+#         - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+#           action: replace
+#           target_label: __metrics_path__
+#           regex: (.+)
+#         - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+#           action: replace
+#           regex: ([^:]+)(?::\d+)?;(\d+)
+#           replacement: $1:$2
+#           target_label: __address__
+#         - action: labelmap
+#           regex: __meta_kubernetes_pod_label_(.+)
+#         - source_labels: [__meta_kubernetes_namespace]
+#           action: replace
+#           target_label: kubernetes_namespace
+#         - source_labels: [__meta_kubernetes_pod_name]
+#           action: replace
+#           target_label: kubernetes_pod_name
+
+# # Prometheus Deployment
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: prometheus
+#   namespace: system-design-practice
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: prometheus
+#   template:
+#     metadata:
+#       labels:
+#         app: prometheus
+#     spec:
+#       containers:
+#       - name: prometheus
+#         image: prom/prometheus:latest
+#         ports:
+#         - containerPort: 9090
+#         volumeMounts:
+#         - name: prometheus-config
+#           mountPath: /etc/prometheus/prometheus.yml
+#           subPath: prometheus.yml
+#         - name: prometheus-data
+#           mountPath: /prometheus
+#       volumes:
+#       - name: prometheus-config
+#         configMap:
+#           name: prometheus-config
+#       - name: prometheus-data
+#         persistentVolumeClaim:
+#           claimName: prometheus-pvc
+
+# # Prometheus PVC
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: prometheus-pvc
+#   namespace: system-design-practice
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 1Gi
+
+# # Prometheus Service
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: prometheus
+#   namespace: system-design-practice
+# spec:
+#   ports:
+#   - port: 9090
+#     targetPort: 9090
+#   selector:
+#     app: prometheus
+
+# # Grafana Deployment
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: grafana
+#   namespace: system-design-practice
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: grafana
+#   template:
+#     metadata:
+#       labels:
+#         app: grafana
+#     spec:
+#       containers:
+#       - name: grafana
+#         image: grafana/grafana:latest
+#         ports:
+#         - containerPort: 3000
+#         volumeMounts:
+#         - name: grafana-data
+#           mountPath: /var/lib/grafana
+#       volumes:
+#       - name: grafana-data
+#         persistentVolumeClaim:
+#           claimName: grafana-pvc
+
+# # Grafana PVC
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: grafana-pvc
+#   namespace: system-design-practice
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 1Gi
+
+# # Grafana Service
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: grafana
+#   namespace: system-design-practice
+# spec:
+#   ports:
+#   - port: 3000
+#     targetPort: 3000
+#   selector:
+#     app: grafana

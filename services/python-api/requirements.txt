@@ -1,0 +1,11 @@
+fastapi==0.100.0
+uvicorn[standard]==0.22.0
+pydantic==2.0.3
+motor==3.2.0
+redis==4.6.0
+aio_pika==9.1.5
+python-dotenv==1.0.0
+# For OpenAPI/Swagger documentation with FastAPI
+python-multipart==0.0.6 
+# For seeding data (if needed, can be done via mongo client or another script)
+# pymongo==4.4.1
